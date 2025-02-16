@@ -6,6 +6,7 @@ import (
 	"github.com/g4s8/envdoc/debug"
 	"github.com/g4s8/envdoc/tags"
 	"github.com/g4s8/envdoc/utils"
+	"strings"
 )
 
 type FieldSpecDecoder struct {
@@ -92,8 +93,8 @@ func (d *FieldSpecDecoder) decodeTagDescription(_ *FieldSpec, tag *tags.FieldTag
 		return
 	}
 
-	if tagDescription, ok := tag.GetFirst(d.tagDescription); ok {
-		out.Description = tagDescription
+	if tagValues := tag.GetAll(d.tagDescription); len(tagValues) > 0 {
+		out.Description = strings.Join(tagValues, ",")
 	}
 }
 
