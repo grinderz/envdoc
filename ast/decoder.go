@@ -81,8 +81,8 @@ func (d *FieldSpecDecoder) decodeTagValues(_ *FieldSpec, tag *tags.FieldTag, out
 }
 
 func (d *FieldSpecDecoder) decodeEnvDefault(_ *FieldSpec, tag *tags.FieldTag, out *FieldInfo) {
-	if envDefault, ok := tag.GetFirst(d.tagDefault); ok {
-		out.Default = envDefault
+	if envDefault := tag.GetAll(d.tagDefault); len(envDefault) > 0 {
+		out.Default = strings.Join(envDefault, ",")
 	} else if d.requiredIfNoDef {
 		out.Required = true
 	}
