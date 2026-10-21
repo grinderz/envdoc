@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/g4s8/envdoc/linter"
+	"github.com/grinderz/envdoc/linter"
 	"golang.org/x/tools/go/analysis/unitchecker"
 )
 

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/g4s8/envdoc/ast"
-	"github.com/g4s8/envdoc/testutils"
-	"github.com/g4s8/envdoc/types"
+	"github.com/grinderz/envdoc/ast"
+	"github.com/grinderz/envdoc/testutils"
+	"github.com/grinderz/envdoc/types"
 )
 
 func TestFieldDecoder(t *testing.T) {

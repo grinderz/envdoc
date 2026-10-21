@@ -1,6 +1,6 @@
 package render
 
-import "github.com/g4s8/envdoc/types"
+import "github.com/grinderz/envdoc/types"
 
 type renderItemConfig struct {
 	SeparatorFormat  string

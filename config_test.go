@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/g4s8/envdoc/testutils"
+	"github.com/grinderz/envdoc/testutils"
 )
 
 func TestConfig(t *testing.T) {

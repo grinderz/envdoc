@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"strings"
 
-	"github.com/g4s8/envdoc/debug"
+	"github.com/grinderz/envdoc/debug"
 )
 
 type fileVisitorHandler = interface {

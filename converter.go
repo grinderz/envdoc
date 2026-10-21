@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/g4s8/envdoc/ast"
-	"github.com/g4s8/envdoc/debug"
-	"github.com/g4s8/envdoc/enums"
-	"github.com/g4s8/envdoc/types"
+	"github.com/grinderz/envdoc/ast"
+	"github.com/grinderz/envdoc/debug"
+	"github.com/grinderz/envdoc/enums"
+	"github.com/grinderz/envdoc/types"
 )
 
 type Resolver interface {

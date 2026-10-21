@@ -3,8 +3,8 @@ package ast
 import (
 	"testing"
 
-	"github.com/g4s8/envdoc/testutils"
-	"github.com/g4s8/envdoc/utils"
+	"github.com/grinderz/envdoc/testutils"
+	"github.com/grinderz/envdoc/utils"
 )
 
 func testGlob(t *testing.T, name string) func(string) bool {

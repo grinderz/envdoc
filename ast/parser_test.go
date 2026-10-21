@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/g4s8/envdoc/debug"
+	"github.com/grinderz/envdoc/debug"
 	"golang.org/x/tools/txtar"
 	"gopkg.in/yaml.v2"
 )

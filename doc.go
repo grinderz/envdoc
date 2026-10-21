@@ -6,7 +6,7 @@ directive.
 For example, given the following Go type with struct tags and
 a `go:generate` directive:
 
-	//go:generate go run github.com/g4s8/envdoc@latest -output config.md
+	//go:generate go run github.com/grinderz/envdoc@latest -output config.md
 	type Config struct {
 		// Host name to listen on.
 		Host string `env:"HOST,required"`

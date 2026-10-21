@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/g4s8/envdoc/types"
+	"github.com/grinderz/envdoc/types"
 )
 
 func TestRenderer(t *testing.T) {

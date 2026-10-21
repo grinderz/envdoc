@@ -1,4 +1,4 @@
-module github.com/g4s8/envdoc
+module github.com/grinderz/envdoc
 
 go 1.25.1
 

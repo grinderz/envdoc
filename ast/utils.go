@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"strings"
 
-	"github.com/g4s8/envdoc/debug"
+	"github.com/grinderz/envdoc/debug"
 )
 
 func getFieldTypeRef(f ast.Expr, ref *FieldTypeRef) bool {

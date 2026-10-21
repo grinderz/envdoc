@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/g4s8/envdoc/types"
+	"github.com/grinderz/envdoc/types"
 )
 
 type Renderer struct {

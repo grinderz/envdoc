@@ -151,7 +151,7 @@ func (fs *FieldSpec) String() string {
 }
 
 func (i *ImportSpec) PathName() string {
-	// convert path `github.com/g4s8/envdoc/ast` to `ast`
+	// convert path `github.com/grinderz/envdoc/ast` to `ast`
 	if i.Path == "" {
 		return i.Path
 	}
