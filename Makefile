@@ -291,16 +291,20 @@ fork.release: ## Tag FORK_BRANCH on FORK_REMOTE as the next <upstream tag>-fork.
 	base=$$($(FORK_BASE_CMD))
 	n=$$(git tag -l "$$base-fork.*" | sed 's/.*-fork\.//' | sort -n | tail -1)
 	tag="$$base-fork.$$(( $${n:-0} + 1 ))"
-	git tag "$$tag" "$$commit"
+	# -m: with tag.gpgSign the tag is annotated and needs a message
+	git tag -m "$$tag: upstream $$base with the fork changes, see FORK.md" "$$tag" "$$commit"
 	git push $(FORK_REMOTE) "refs/tags/$$tag"
 	$(MAKE) --no-print-directory fork.release.check TAG="$$tag"
 
-# outside the module, so the proxy resolves the tag as any consumer would
+# outside the module, so the tag resolves as for any consumer: go mod download
+# reads it from the proxy and verifies it against the checksum database. Both
+# cache a not found answer for a while, a check right after the push may fail
 .PHONY: fork.release.check
-fork.release.check: ## Check that the Go proxy serves TAG (default: the newest fork tag)
+fork.release.check: ## Check that the Go proxy and checksum database serve TAG (default: the newest fork tag)
 	@tag='$(TAG)'
 	if [ -z "$$tag" ]; then
 		tag=$$(git tag -l 'v*-fork.*' --sort=-v:refname | head -1)
 	fi
 	cd "$$(mktemp -d)"
-	GOFLAGS= GOPROXY=https://proxy.golang.org go list -m "$(GO_MOD_ID)@$$tag"
+	GOFLAGS= GOPROXY=https://proxy.golang.org GOPRIVATE= GONOSUMDB= GONOPROXY= GOSUMDB=sum.golang.org \
+		go mod download -json "$(GO_MOD_ID)@$$tag" | grep -E '"(Version|Sum|Error)"'
