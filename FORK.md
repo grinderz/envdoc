@@ -29,12 +29,17 @@ On top of the upstream release tag:
   one of `-format`. The option strings and the helper templates
   (`item.options`) still come from `-format`. The template gets the fork-only
   item fields `.Type`, `.Values` and `.Map`.
+- **Module path** `github.com/grinderz/envdoc`: no `replace` in the services,
+  and `go run github.com/grinderz/envdoc@<version>` works (see
+  [Module path](#module-path)).
 - **Fork CI** in `.github/workflows/fork.yml`: upstream `go.yml` runs on
   `master` only.
+- **Makefile** with the checks of the fork CI and the fork maintenance
+  targets below (`make help` lists them).
 
 Fork-only code lives in new files where possible: `enums/`,
 `render/template_file.go`, `render/templ/markdown_table.tmpl`, `fork_test.go`,
-`.github/workflows/fork.yml`.
+`.github/workflows/fork.yml`, `Makefile`, `local.mk.example`.
 
 ## Branches and tags
 
@@ -67,29 +72,55 @@ Once, locally:
 
 ```sh
 git remote add upstream https://github.com/g4s8/envdoc.git
-git config rerere.enabled true    # reuse conflict resolutions between merges
+git config rerere.enabled true      # reuse conflict resolutions between merges
+git config fetch.pruneTags false    # see below
 gh repo set-default grinderz/envdoc
+cp local.mk.example local.mk        # newest go the services run
 ```
+
+`fetch.pruneTags` (often set globally together with `fetch.prune`) deletes the
+local tags the fetched remote lacks: a fetch of `origin` drops the upstream
+tags, a fetch of `upstream` drops the fork tags. The fork needs both, so it is
+off in this repository; the make targets fetch with it off anyway.
 
 `gh repo set-default` matters: in a GitHub fork, `gh pr create` and the web
 "Compare & pull request" button target the parent repository `g4s8/envdoc` by
-default. Always check that a new PR goes to `grinderz/envdoc` and `fork/main`.
+default. Always check that a new PR goes to `grinderz/envdoc` and `fork/main`;
+`make fork.pr` passes both explicitly.
 
 On GitHub, `grinderz/envdoc` settings:
 
 - **General:** default branch `fork/main`. Pull requests: allow merge commits
-  (for `sync/*`) and squash merging (for `feat/*`, `fix/*`); disable rebase
-  merging, it would copy the upstream commits of a `sync/*` PR onto
-  `fork/main` one by one.
+  and squash merging; disable rebase merging, it would copy the upstream
+  commits of a `sync/*` PR onto `fork/main` one by one.
 - **Actions:** enable workflows; GitHub disables them in a fresh fork.
 - **Rules:** two branch rulesets for `fork/main` (the default branch):
   - require a pull request and the `fork CI` checks (`check`,
     `test-windows`), with Repository admin in the bypass list. The
-    fast-forward merge of `feat/*` (see below) is a direct push, which
-    "require a pull request" blocks otherwise;
+    fast-forward merge (see below) is a direct push, which "require a pull
+    request" blocks otherwise;
   - block force pushes and restrict deletions, with an empty bypass list.
     A bypass actor skips every rule of its ruleset, so in one shared ruleset
     the admin could force push `fork/main` too.
+
+## Make targets
+
+| Target | What it does |
+|--------|--------------|
+| `make check` | Build, `go vet` (also for windows), golangci-lint of upstream CI, `_examples`, tests, coverage tests: what the fork CI runs. |
+| `make fork.status` | The upstream tag `fork/main` is on, the newest upstream tag, the fork releases and what is not released yet. |
+| `make fork.mirror` | Fetch upstream with its tags, fast-forward `master` locally and on `origin`. Pushes `master` only, never tags. |
+| `make fork.check.go REF=<ref>` | The `go` lines of `go.mod` at a ref; fails if `go` is newer than `FORK_GO_MAX`. |
+| `make fork.sync [NEW=<tag>]` | `sync/<tag>` off `origin/fork/main`, merge of the tag (the newest by default) after `fork.check.go`, then `fork.imports`. |
+| `make fork.imports` | Rewrite the module path and imports from `g4s8` to `grinderz`. Does not commit. |
+| `make fork.delta` | Compare the fork delta of `origin/fork/main` on its upstream tag with the one of `HEAD` on its tag, into `artifacts/fork-delta.diff`. |
+| `make fork.pr` | Push the current branch and open its PR into `grinderz/envdoc:fork/main`. |
+| `make fork.ff [BRANCH=<branch>]` | Check that the branch is pushed, on top of `origin/fork/main` and its required PR checks passed, then fast-forward `fork/main` to it. |
+| `make fork.release` | Tag `origin/fork/main` as the next `<upstream tag>-fork.N`, push the tag, then `fork.release.check`. |
+| `make fork.release.check [TAG=<tag>]` | Resolve the tag through proxy.golang.org as a consumer would. |
+
+The targets that push (`fork.mirror`, `fork.pr`, `fork.ff`, `fork.release`)
+name every ref they push: no `--tags`, no force.
 
 ## Fork changes
 
@@ -97,93 +128,72 @@ On GitHub, `grinderz/envdoc` settings:
 git fetch origin
 git switch -c feat/<topic> origin/fork/main
 # ... commits ...
-go build ./... && go test ./...
-git push -u origin feat/<topic>
-gh pr create --repo grinderz/envdoc --base fork/main --fill
+make check
+make fork.pr
 ```
 
-Merge with **Squash and merge**: one commit per feature on `fork/main`.
-
-Or merge with a fast-forward, to keep the PR commits with their SHAs. GitHub
-has no fast-forward button (**Rebase and merge** recreates the commits), so it
-is a push of the PR branch, once its checks are green:
+Merge with a fast-forward, to keep the PR commits with their SHAs, once the
+checks are green:
 
 ```sh
-git fetch origin
-git switch feat/<topic>
-git rebase origin/fork/main             # only if fork/main moved on
-git push --force-with-lease             # after a rebase; wait for the checks again
-git push origin feat/<topic>:fork/main  # rejected unless it is a fast-forward
+git rebase origin/fork/main && git push --force-with-lease   # only if fork/main moved on; wait for the checks again
+make fork.ff
 ```
 
-GitHub marks the PR as merged once its head commit is on `fork/main`. The push
-needs the bypass from [Repository setup](#repository-setup). Do not use it for
-`sync/*`: those are merged with a merge commit.
+GitHub has no fast-forward button (**Rebase and merge** recreates the
+commits), so `fork.ff` pushes the PR head to `fork/main`: `git push origin
+<head>:refs/heads/fork/main`, which git rejects unless it is a fast-forward.
+GitHub marks the PR as merged once its head commit is on `fork/main`. The
+push needs the bypass from [Repository setup](#repository-setup).
 
-Then tag the next release on the same upstream base, e.g. `v1.12.0-fork.2`
+Or merge with **Squash and merge**: one commit per feature on `fork/main`.
+
+Then release on the same upstream base, e.g. `v1.12.0-fork.2`
 (see [Releasing](#releasing)).
 
 ## Updating to a new upstream release
 
 ```sh
-git fetch upstream --tags
-
-# 1. Mirror upstream master.
-git switch master
-git merge --ff-only upstream/master
-git push origin master
-
-# 2. Pick the new tag and check what it requires.
-OLD=v1.12.0                       # the upstream tag fork/main is on now
-NEW=v1.13.0
-git log --oneline $OLD..$NEW
-git show $NEW:go.mod | grep -E '^(go|toolchain) '
+make fork.mirror
+make fork.status       # fork/main is on v1.12.0, the newest upstream tag is v1.13.0
+make fork.sync         # or NEW=v1.13.0; stops on a go line newer than FORK_GO_MAX
 ```
 
 The `go` line of the fork is the minimum Go version for its consumers. It must
-not be newer than the Go toolchain the services pin: their CI runs
-with `GOTOOLCHAIN=local` and will not download a newer toolchain. Do not
-remove the `go` line from `go.mod` to work around it: without it the module is
-treated as Go 1.16 and generics stop compiling. Lowering it in a separate
-commit is fine if the code and the dependencies still build with the older
-toolchain.
+not be newer than the Go toolchain the services pin: their CI runs with
+`GOTOOLCHAIN=local` and will not download a newer toolchain. `FORK_GO_MAX` in
+`local.mk` is that version. Do not remove the `go` line from `go.mod` to work
+around it: without it the module is treated as Go 1.16 and generics stop
+compiling. Lowering it in a separate commit is fine if the code and the
+dependencies still build with the older toolchain.
+
+On a conflict `fork.sync` stops. Resolve it (imports: take the upstream side),
+`git commit`, then `make fork.imports`. Commit the rewritten imports if it
+changed anything, then:
 
 ```sh
-# 3. Merge the tag on a sync branch.
-git fetch origin
-git switch -c sync/$NEW origin/fork/main
-git merge --no-ff $NEW -m "Merge upstream $NEW"
-# resolve conflicts, then:
-go build ./... && go test ./...
-./_examples/clean.sh && ./_examples/build-examples.sh && git status --short _examples
-
-# 4. Review the fork delta: it should look the same as before the merge.
-git diff $OLD origin/fork/main > /tmp/fork-old.diff
-git diff $NEW sync/$NEW        > /tmp/fork-new.diff
-diff /tmp/fork-old.diff /tmp/fork-new.diff
-
-# 5. PR.
-git push -u origin sync/$NEW
-gh pr create --repo grinderz/envdoc --base fork/main --title "Merge upstream $NEW" --body ""
+make check
+make fork.delta        # the fork delta should look the same as before the merge
+# check the output against the services, see below
+make fork.pr
+make fork.ff           # or Create a merge commit in the PR
 ```
 
-Merge with **Create a merge commit**, never squash: a squash drops the upstream
-ancestry, and the next sync PR would conflict on the same changes again.
-
-Check the output against the services (see below) before releasing.
+The fast-forward keeps the `Merge upstream <tag>` commit made by `fork.sync`;
+**Create a merge commit** adds a second merge on top. Either keeps the
+upstream ancestry. Never squash or rebase a `sync/*` PR: that drops the
+ancestry, and the next sync would conflict on the same changes again.
 
 ## Releasing
 
 ```sh
-git fetch origin
-git switch fork/main
-git merge --ff-only origin/fork/main
-git tag v1.13.0-fork.1
-git push origin v1.13.0-fork.1
+make fork.release      # v1.13.0-fork.1 after a sync, v1.12.0-fork.2 after a fork change
 ```
 
 `-fork.N` starts at 1 after each sync and grows with every fork release on
-the same upstream base.
+the same upstream base. Right after the push the proxy may still answer
+`fork.release.check` with a cached 404 for a version asked for earlier; run
+`make fork.release.check` again later.
 
 ## Keeping merges cheap
 
@@ -195,6 +205,8 @@ the same upstream base.
 - Add rather than change upstream API: `Generate(dir)` is kept,
   `GenerateDirs(dirs)` is added. Upstream tests stay untouched; fork tests go
   to `fork_test.go` and new `_test.go` files.
+- Upstream has no `Makefile`. If it adds one, move the fork targets to
+  `fork.mk` and include it, instead of merging the two.
 - Do not edit upstream `go.yml`; fork CI lives in `fork.yml`. On a sync, align
   the golangci-lint version in `fork.yml` with `go.yml`.
 - Do not fix upstream lint findings (newer golangci-lint reports gofumpt in
@@ -204,26 +216,27 @@ the same upstream base.
 
 ## Module path
 
-`go.mod` still declares `module github.com/g4s8/envdoc`, so the services
-connect the fork with a `replace`:
-
-```
-replace github.com/g4s8/envdoc => github.com/grinderz/envdoc v1.12.0-fork.1
-```
-
-To drop the `replace` and run the fork as
-`go run github.com/grinderz/envdoc@<version>`, the module path has to become
-`github.com/grinderz/envdoc`: one `feat/*` PR with
+The fork's module path is `github.com/grinderz/envdoc`, so it is used without
+a `replace`:
 
 ```sh
-go mod edit -module github.com/grinderz/envdoc
-grep -rl --include='*.go' github.com/g4s8/envdoc . \
-  | xargs sed -i 's#github.com/g4s8/envdoc#github.com/grinderz/envdoc#g'
+go get -tool github.com/grinderz/envdoc@v1.12.0-fork.1     # pin in go.mod
+go run github.com/grinderz/envdoc@v1.12.0-fork.1 ...       # or no go.mod entry at all
 ```
 
-After that, every sync merge brings upstream files with the old import path.
-In a sync PR, resolve import conflicts by taking the upstream side, then run
-the same `sed` again and commit it on the sync branch before the PR:
+A `replace github.com/g4s8/envdoc => github.com/grinderz/envdoc ...` does not
+work with these versions: Go rejects it with `module declares its path as:
+github.com/grinderz/envdoc but was required as: github.com/g4s8/envdoc`. Only
+the legacy pseudo-version still declares the `g4s8` path.
+
+The rename is the commit `chore: rename module to github.com/grinderz/envdoc`:
+`go.mod` and the `.go` files. Upstream `README.md` and `docenv/README.md` keep
+the `g4s8` path on purpose: they are upstream docs, and editing them would
+conflict on every sync.
+
+Every sync merge brings upstream files with the old import path. In a sync
+PR, resolve import conflicts by taking the upstream side, then rewrite the
+imports again and commit it on the sync branch before the PR:
 
 ```sh
 grep -rl --include='*.go' github.com/g4s8/envdoc . \
@@ -232,19 +245,27 @@ go build ./... && go test ./...
 git commit -am "chore: rewrite imports to github.com/grinderz/envdoc after $NEW"
 ```
 
+If upstream changes `go.mod` itself, keep `module github.com/grinderz/envdoc`
+when resolving the conflict.
+
 ## Checking against the services
 
 The committed `envs.md` in the services is the reference output. Before
-tagging, regenerate it with the local fork in one or more services and review
+tagging, regenerate it with a local build in one or more services and review
 the diff:
 
 ```sh
+make build             # in this repo: artifacts/envdoc
+
 cd <service>
-go mod edit -replace github.com/g4s8/envdoc=<path to this repo>
-go generate ./...   # or the make target that runs it
+sed -Ei 's#go run github.com/(g4s8|grinderz)/envdoc(@[^ ]*)?#<path to this repo>/artifacts/envdoc#' generate.go
+go generate ./...      # or the make target that runs it
 git diff -- '*.md'
-git checkout -- go.mod go.sum
+git checkout -- generate.go
 ```
+
+The local binary takes the place of `go run`, so this works whether the
+service pins envdoc in its `go.mod` or runs it with `go run ...@version`.
 
 An empty diff, or a diff limited to what the new release is meant to change,
 is the expected result.
@@ -252,9 +273,7 @@ is the expected result.
 A service still on the legacy fork calls envdoc with the old
 `-tag-default`, `-tag-prefix`, `-tag-description`, `-tag-separator` and
 `-tag-required` flags, which `fork/main` does not have. Switch its
-`generate.go` to `-target cleanenv` first. After the module rename, replace
-`github.com/grinderz/envdoc` instead: a directory replace must match the
-module path declared in its `go.mod`.
+`generate.go` to `-target cleanenv` first.
 
 The services render with a copy of `render/templ/markdown_table.tmpl` kept in
 their shared build files and passed with `-template`. If the template or the
