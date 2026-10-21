@@ -1,0 +1,51 @@
+# Fork-only CI: upstream go.yml runs on master only. Kept in a separate file
+# so upstream changes to go.yml never conflict with it.
+name: fork CI
+"on":
+  push:
+    branches: ["fork/main"]
+  pull_request:
+    branches: ["fork/main"]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: go build -v ./...
+      - name: Test
+        run: go test -v ./...
+      - name: Check examples
+        run: |
+          ./_examples/clean.sh
+          ./_examples/build-examples.sh
+          if git diff --quiet; then
+            echo "examples are clean"
+          else
+            echo "examples are dirty, rebuild it locally before commiting"
+            git diff | cat
+            exit 1
+          fi
+      - name: Vet
+        run: go vet ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          # same version as upstream go.yml
+          version: v2.4.0
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: go build -v ./...
+      - name: Test
+        run: go test -v ./...
