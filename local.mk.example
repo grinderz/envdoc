@@ -1,0 +1,6 @@
+# Machine-specific settings of the Makefile: cp local.mk.example local.mk
+# (gitignored). CLI variables still win
+
+# newest go the services run: make fork.sync and fork.check.go fail on a newer
+# go line in upstream go.mod
+FORK_GO_MAX := 1.26.9
