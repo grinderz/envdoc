@@ -6,6 +6,7 @@ import (
 
 	"github.com/g4s8/envdoc/ast"
 	"github.com/g4s8/envdoc/debug"
+	"github.com/g4s8/envdoc/enums"
 	"github.com/g4s8/envdoc/resolver"
 	"github.com/g4s8/envdoc/types"
 )
@@ -29,10 +30,25 @@ func NewGenerator(parser *ast.Parser, converter *Converter, renderer Renderer) *
 }
 
 func (g *Generator) Generate(dir string, out io.Writer) error {
-	files, err := g.parser.Parse(dir)
-	if err != nil {
-		return fmt.Errorf("parse dir: %w", err)
+	return g.GenerateDirs([]string{dir}, out)
+}
+
+// GenerateDirs parses all dirs together, so types from one dir resolve
+// fields in another.
+func (g *Generator) GenerateDirs(dirs []string, out io.Writer) error {
+	var files []*ast.FileSpec
+	for _, dir := range dirs {
+		dirFiles, err := g.parser.Parse(dir)
+		if err != nil {
+			return fmt.Errorf("parse dir %q: %w", dir, err)
+		}
+		files = append(files, dirFiles...)
 	}
+	enumValues, err := enums.Collect(dirs)
+	if err != nil {
+		return fmt.Errorf("collect enums: %w", err)
+	}
+	g.converter.enums = enumValues
 
 	res := resolver.ResolveAllTypes(files)
 	debug.PrintDebug(res)

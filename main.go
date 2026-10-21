@@ -38,6 +38,11 @@ func main() {
 		UseFieldNames:   cfg.FieldNames,
 	})
 	renderer := render.NewRenderer(cfg.OutFormat, cfg.NoStyles, cfg.Edit)
+	if cfg.Template != "" {
+		if err := renderer.SetTemplateFile(cfg.Template); err != nil {
+			fatal("Failed to load template: %v", err)
+		}
+	}
 	gen := NewGenerator(parser, converter, renderer)
 
 	// Branch based on mode
@@ -51,7 +56,7 @@ func main() {
 // generateEdit generates documentation in edit mode, replacing content between markers
 func generateEdit(gen *Generator, cfg Config) {
 	var buf bytes.Buffer
-	if err := gen.Generate(cfg.Dir, &buf); err != nil {
+	if err := gen.GenerateDirs(cfg.Dirs, &buf); err != nil {
 		fatal("Failed to generate: %v", err)
 	}
 
@@ -78,7 +83,7 @@ func generateNormal(gen *Generator, cfg Config) {
 	}()
 
 	buf := bufio.NewWriter(out)
-	if err := gen.Generate(cfg.Dir, buf); err != nil {
+	if err := gen.GenerateDirs(cfg.Dirs, buf); err != nil {
 		fatal("Failed to generate: %v", err)
 	}
 	if err := buf.Flush(); err != nil {

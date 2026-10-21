@@ -11,6 +11,7 @@ type Renderer struct {
 	format   types.OutFormat
 	noStyles bool
 	edit     bool
+	tmpl     template // overrides the format template if set
 }
 
 func NewRenderer(format types.OutFormat, noStyles bool, edit bool) *Renderer {
@@ -28,7 +29,11 @@ func (r *Renderer) Render(scopes []*types.EnvScope, out io.Writer) error {
 	}
 
 	c := newRenderContext(scopes, cfg, r.noStyles, r.edit)
-	f := templateRenderer(cfg.tmpl)
+	tmpl := cfg.tmpl
+	if r.tmpl != nil {
+		tmpl = r.tmpl
+	}
+	f := templateRenderer(tmpl)
 
 	if err := f(c, out); err != nil {
 		return fmt.Errorf("render: %w", err)
@@ -43,10 +48,13 @@ type renderSection struct {
 }
 
 type renderItem struct {
-	EnvName      string `json:"env_name,omitempty"`
-	Doc          string `json:"doc,omitempty"`
-	EnvDefault   string `json:"env_default,omitempty"`
-	EnvSeparator string `json:"env_separator,omitempty"`
+	EnvName      string   `json:"env_name,omitempty"`
+	Doc          string   `json:"doc,omitempty"`
+	Type         string   `json:"-"`
+	Values       []string `json:"-"`
+	Map          bool     `json:"-"`
+	EnvDefault   string   `json:"env_default,omitempty"`
+	EnvSeparator string   `json:"env_separator,omitempty"`
 
 	Required bool `json:"required,omitempty"`
 	Expand   bool `json:"expand,omitempty"`
@@ -109,6 +117,9 @@ func newRenderItem(item *types.EnvDocItem) renderItem {
 	return renderItem{
 		EnvName:      item.Name,
 		Doc:          item.Doc,
+		Type:         item.Type,
+		Values:       item.Values,
+		Map:          item.Map,
 		EnvDefault:   item.Opts.Default,
 		EnvSeparator: item.Opts.Separator,
 		Required:     item.Opts.Required,

@@ -16,6 +16,10 @@ import (
 type Config struct {
 	// Dir to search for files
 	Dir string
+	// Dirs to search for files: positional args followed by Dir
+	Dirs []string
+	// Template is a template file overriding the built-in one of OutFormat
+	Template string
 	// FileGlob to filter by file name
 	FileGlob string
 	// TypeGlob to filter by type name
@@ -63,6 +67,7 @@ func (c *Config) parseFlags(f *flag.FlagSet) error {
 	f.StringVar(&c.OutFile, "output", "", "Output file path")
 	f.StringVar((*string)(&c.OutFormat), "format", "markdown", "Output format, default `markdown`")
 	f.BoolVar(&c.NoStyles, "no-styles", false, "Disable styles for HTML output")
+	f.StringVar(&c.Template, "template", "", "Template file to render instead of the built-in one of -format")
 	f.BoolVar(&c.Edit, "edit", false, "Enable in-place editing mode (replaces content between markers)")
 	// app config flags
 	f.StringVar(&c.EnvPrefix, "env-prefix", "", "Environment variable prefix")
@@ -84,6 +89,7 @@ func (c *Config) parseFlags(f *flag.FlagSet) error {
 	if err := f.Parse(os.Args[1:]); err != nil {
 		return fmt.Errorf("parse flags: %w", err)
 	}
+	c.Dirs = f.Args()
 
 	// deprecated flags `all`, `type` and new flag `types` can't be used together
 	if all && typeName != "" {
@@ -158,11 +164,12 @@ func (c *Config) setDefaults() {
 	if c.Dir == "" {
 		c.Dir = "."
 	}
+	c.Dirs = append(c.Dirs, c.Dir)
 }
 
 func (c *Config) fprint(out io.Writer) {
 	fmt.Fprintln(out, "Config:")
-	fmt.Fprintf(out, "  Dir: %q\n", c.Dir)
+	fmt.Fprintf(out, "  Dirs: %q\n", c.Dirs)
 	if c.FileGlob != "" {
 		fmt.Fprintf(out, "  FileGlob: %q\n", c.FileGlob)
 	}
@@ -171,6 +178,9 @@ func (c *Config) fprint(out io.Writer) {
 	}
 	fmt.Fprintf(out, "  OutFile: %q\n", c.OutFile)
 	fmt.Fprintf(out, "  OutFormat: %q\n", c.OutFormat)
+	if c.Template != "" {
+		fmt.Fprintf(out, "  Template: %q\n", c.Template)
+	}
 	if c.EnvPrefix != "" {
 		fmt.Fprintf(out, "  EnvPrefix: %q\n", c.EnvPrefix)
 	}

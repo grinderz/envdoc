@@ -15,6 +15,16 @@ type FieldInfo struct {
 	FromFile  bool
 	Default   string
 	Separator string
+	// Description overrides the field doc comment, cleanenv `env-description` tag.
+	Description string
+}
+
+// doc returns the field documentation: Description if set, the doc comment otherwise.
+func (i FieldInfo) doc(f *ast.FieldSpec) string {
+	if i.Description != "" {
+		return i.Description
+	}
+	return f.Doc
 }
 
 type FieldDecoder interface {
@@ -135,13 +145,23 @@ func (d *cleanenvFieldDecoder) Decode(f *ast.FieldSpec) (res FieldInfo, prefix s
 	var separator string
 	if envSeparator, ok := tag.GetFirst("env-separator"); ok {
 		separator = envSeparator
+	} else if f.TypeRef.Kind == ast.FieldTypeArray || f.TypeRef.Kind == ast.FieldTypeMap {
+		separator = ","
+	}
+
+	if envDescription, ok := tag.GetString("env-description"); ok {
+		res.Description = envDescription
 	}
 
 	if envPrefix, ok := tag.GetFirst("env-prefix"); ok {
 		prefix = d.opts.EnvPrefix + envPrefix
 	}
 
-	res.Names = []string{d.opts.EnvPrefix + name}
+	// a field without env name only carries a prefix for its children
+	res.Names = []string{""}
+	if name != "" {
+		res.Names = []string{d.opts.EnvPrefix + name}
+	}
 	res.Required = required
 	res.Default = defaultVal
 	res.Separator = separator

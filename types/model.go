@@ -13,6 +13,9 @@ const (
 	OutFormatJSON     OutFormat = "json"
 )
 
+// OutFormatMarkdownTable is a markdown table with one row per variable.
+const OutFormatMarkdownTable OutFormat = "markdown-table"
+
 // EnvDocItem is a documentation item for one environment variable.
 type EnvDocItem struct {
 	// Name of the environment variable.
@@ -21,6 +24,12 @@ type EnvDocItem struct {
 	Doc string
 	// Opts is a set of options for environment variable parsing.
 	Opts EnvVarOptions
+	// Type is a Go type of the field.
+	Type string
+	// Values are allowed values of an enum type.
+	Values []string
+	// Map is true for map types, set as `key:value` pairs.
+	Map bool
 	// Children is a list of child environment variables.
 	Children []*EnvDocItem
 }

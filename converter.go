@@ -7,6 +7,7 @@ import (
 
 	"github.com/g4s8/envdoc/ast"
 	"github.com/g4s8/envdoc/debug"
+	"github.com/g4s8/envdoc/enums"
 	"github.com/g4s8/envdoc/types"
 )
 
@@ -25,6 +26,20 @@ type ConverterOpts struct {
 type Converter struct {
 	target types.TargetType
 	opts   ConverterOpts
+	enums  enums.Values
+}
+
+// enumValues returns allowed values of the field type, resolving the package
+// alias as the type resolver does.
+func (c *Converter) enumValues(file *ast.FileSpec, ref ast.FieldTypeRef) []string {
+	pkg := ref.Pkg
+	for _, imp := range file.Imports {
+		if imp.Name == pkg {
+			pkg = imp.PathName()
+			break
+		}
+	}
+	return c.enums.Get(pkg, ref.Name)
 }
 
 func NewConverter(target types.TargetType, opts ConverterOpts) *Converter {
@@ -133,8 +148,11 @@ func (c *Converter) DocItemsFromField(resolver Resolver, file *ast.FileSpec, pre
 	for i, name := range info.Names {
 		res[i] = &types.EnvDocItem{
 			Name:     name,
-			Doc:      f.Doc,
+			Doc:      info.doc(f),
 			Opts:     opts,
+			Type:     f.TypeRef.String(),
+			Values:   c.enumValues(file, f.TypeRef),
+			Map:      f.TypeRef.Kind == ast.FieldTypeMap,
 			Children: children,
 		}
 		debug.Logf("\t# CONV: docItem %q (%d childrens)\n", name, len(children))
