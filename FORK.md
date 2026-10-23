@@ -8,6 +8,9 @@ upstream. This file is fork-only, so it never conflicts with upstream `README.md
 
 On top of the upstream release tag:
 
+- **Output written after a successful run.** `-output` is written only once
+  the sources parsed and rendered; a failed run leaves the previous file as it
+  was instead of an empty one.
 - **Multiple dirs.** Positional arguments after the flags are parsed together
   with `-dir`, so a type from one dir resolves a field in another:
   `envdoc -dir ./internal ../shared-lib`.

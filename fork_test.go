@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/grinderz/envdoc/ast"
@@ -172,5 +173,50 @@ func TestForkCleanenvFieldDecoder(t *testing.T) {
 				t.Errorf("expected prefix %q, got %q", test.expectPrefix, prefix)
 			}
 		})
+	}
+}
+
+func TestForkGenerateToFileKeepsOutputOnError(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.Mkdir("app", 0o700); err != nil {
+		t.Fatalf("mkdir: %s", err)
+	}
+	writeFile(t, filepath.Join("app", "config.go"), `package config
+
+// Config is the app config.
+type Config struct {
+	// Hosts to listen on.
+	Hosts []string `+"`env:\"HOSTS\"`"+`
+}
+`)
+	writeFile(t, "envs.md", "previous run\n")
+
+	p := ast.NewParser("./app/config.go", "*")
+	conv := NewConverter(types.TargetTypeCleanenv, ConverterOpts{})
+	rend := render.NewRenderer(types.OutFormatMarkdownTable, false, false)
+	gen := NewGenerator(p, conv, rend)
+
+	// a dir that is not there: the parse fails, the file must stay as it was
+	if err := generateToFile(gen, []string{"./missing", "./app"}, "envs.md"); err == nil {
+		t.Fatal("expected an error for a missing dir")
+	}
+	kept, err := os.ReadFile("envs.md")
+	if err != nil {
+		t.Fatalf("read: %s", err)
+	}
+	if string(kept) != "previous run\n" {
+		t.Fatalf("output file changed on a failed run: %q", kept)
+	}
+
+	// the good run writes it
+	if err := generateToFile(gen, []string{"./app"}, "envs.md"); err != nil {
+		t.Fatalf("generate: %s", err)
+	}
+	written, err := os.ReadFile("envs.md")
+	if err != nil {
+		t.Fatalf("read: %s", err)
+	}
+	if !strings.Contains(string(written), "HOSTS") {
+		t.Fatalf("output file not written: %q", written)
 	}
 }

@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"os"
@@ -72,22 +71,8 @@ func generateEdit(gen *Generator, cfg Config) {
 
 // generateNormal generates documentation in normal mode, writing to output file
 func generateNormal(gen *Generator, cfg Config) {
-	out, err := os.Create(cfg.OutFile)
-	if err != nil {
-		fatal("Failed to open output file: %v", err)
-	}
-	defer func() {
-		if err := out.Close(); err != nil {
-			fatal("Failed to close output file: %v", err)
-		}
-	}()
-
-	buf := bufio.NewWriter(out)
-	if err := gen.GenerateDirs(cfg.Dirs, buf); err != nil {
-		fatal("Failed to generate: %v", err)
-	}
-	if err := buf.Flush(); err != nil {
-		fatal("Failed to flush output: %v", err)
+	if err := generateToFile(gen, cfg.Dirs, cfg.OutFile); err != nil {
+		fatal("%v", err)
 	}
 }
 
